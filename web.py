@@ -432,8 +432,9 @@ def predict(img):
         f.write(base64.decodebytes(img[0].encode("utf8").split(b";base64,")[1]))
     
     img = imread('file.jpg')
-    bbox = load_and_run_detector(model_file, ['file.jpg'] , 'papka', render_confidence_threshold=0.5)[0]['detections'][0]['bbox']
-    return int(bbox[0]*4)
+    bbox = load_and_run_detector(model_file, ['file.jpg'] , 'papka', render_confidence_threshold=0.5)[0] #не забыть пустую картинку обработать
+
+    return 1
 
 @app.callback(Output('output-image-upload', 'children'),
               Input('upload-image', 'contents'),

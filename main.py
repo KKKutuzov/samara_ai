@@ -323,6 +323,7 @@ def load_and_run_detector(model_file, image_file_names, output_dir,
                                                       std_dev_time_infer))
     
     return detection_results
+
 model_file = "./md_v4.1.0.pb"
 
 
@@ -346,3 +347,7 @@ def prepare(image_path):
     else:
       data.append((elm['file'],[]))
   predict(data)
+
+if __name__ == '__main__':
+    print('\n\n\nВведите название дириектории с фотографиями:\n')
+    prepare(input())

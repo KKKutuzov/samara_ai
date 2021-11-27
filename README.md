@@ -9,4 +9,17 @@
 
 ## Для установки зависимостей выполнить:
 
-    pip install -r requirements.txt
+    python3 -m pip install -r requirements.txt
+
+## Для загрузки детектора выполнить:
+
+    wget https://lilablobssc.blob.core.windows.net/models/camera_traps/megadetector/md_v4.1.0/md_v4.1.0.pb
+
+## Для запуска сервера выполнить:
+    
+    python3 web.py
+
+## Для запуска классификатора выполнить:
+
+    python3 main.py
+
