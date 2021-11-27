@@ -5,7 +5,6 @@ import os
 import tensorflow
 import sys
 import time
-import random
 import warnings
 
 import humanfriendly
@@ -18,6 +17,21 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 from tqdm import tqdm
 from CameraTraps.ct_utils import truncate_float
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output, State
+import datetime
+import random
+import time
+from jupyter_dash import JupyterDash
+import dash_bootstrap_components as dbc
+import plotly.express as px
+import plotly.io as poi
+import base64
+from PIL import Image
+from imageio import imread, imwrite
+import numpy as np
 
 # ignoring all "PIL cannot read EXIF metainfo for the images" warnings
 warnings.filterwarnings('ignore', '(Possibly )?corrupt EXIF data', UserWarning)
@@ -64,7 +78,6 @@ def load_image(input_file):
     image = open_image(input_file)
     image.load()
     return image
-
 class ImagePathUtils:
     """A collection of utility functions supporting this stand-alone script"""
 
@@ -323,26 +336,180 @@ def load_and_run_detector(model_file, image_file_names, output_dir,
                                                       std_dev_time_infer))
     
     return detection_results
+
 model_file = "./md_v4.1.0.pb"
 
+external_stylesheets = [
+    {
+        "href": "https://fonts.googleapis.com/css2?"
+                "family=Lato:wght@400;700&display=swap",
+        "rel": "stylesheet",
+    },
+]
 
-def predict(data):
-  files = []
-  labels = []
-  for d in data:
-    files.append(d[0])
-    labels.append(random.randint(1,3)) # тут надо прикрутить модель
-  pd.DataFrame({'id': files,
-     'class': labels,
-    }).to_csv('labels.csv', index=False)
+app = dash.Dash(__name__,
+                external_stylesheets=external_stylesheets)
+app.title = "Tiger Analytics"
 
-def prepare(image_path):
-  imgs = list(map(lambda x: image_path + '/' + x, os.listdir(image_path)))
-  s = load_and_run_detector(model_file, imgs, 'papka', render_confidence_threshold=0.5)
-  data = [] # Список из файл и его ббокс, если ббокса нет то пустой список второй элемент
-  for elm in s:
-    if elm['detections']:
-      data.append((elm['file'], elm['detections'][0]['bbox']))
-    else:
-      data.append((elm['file'],[]))
-  predict(data)
+
+''' LAYOUT '''
+
+app.layout = html.Div([
+    html.Div(
+            children=[
+                html.P(children="🐯", className="header-emoji"),
+                html.H1(
+                    children="Tiger Analytics", className="header-title"
+                ),
+                html.P(
+                    children="Analyze the behavior of tiger"
+                    " and the number of tiger sold in the Russia"
+                    " between 2015 and 2021",
+                    className="header-description",
+                ),
+            ],
+            className="header",
+            style={'margin-bottom': 40}
+        ),
+    dcc.Upload(
+        id='upload-image',
+        children=html.Div([
+            'Drag and Drop or ',
+            html.A('Select Files')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '0px',
+            'margin-bottom': '40px'
+        },
+        # Allow multiple files to be uploaded
+        multiple=True
+    ),
+    dcc.Loading(
+        id="loading-2",
+        children=[html.Div([
+            dbc.Row([
+                dbc.Col(
+                    html.Div(id='output-image-upload'),
+                    width={"size": 6, "offset": 3}),
+            ],
+            style={'margin-bottom': 40}
+            )
+        ])],
+        type="default",
+        style = {'padding-top' : '5px'}
+        ),
+    ],
+    style={'margin-left': '60px',
+           'margin-right': '60px'}
+    )
+
+''' CALLBACKS '''
+
+
+def parse_contents(contents):
+    return html.Div([
+        html.H1('На фотографии изображены'),
+        # HTML images accept base64 encoded strings in the same format
+        # that is supplied by the upload
+        html.Img(src=contents,
+                 style={
+                     'height': 400,
+                     'display' : 'block', 
+                     'margin-left' : 'auto', 
+                     'margin-right' : 'auto'
+                 }),
+    ])
+
+def predict(img):
+    with open('file.jpg', 'wb') as f:
+        f.write(base64.decodebytes(img[0].encode("utf8").split(b";base64,")[1]))
+    
+    img = imread('file.jpg')
+    bbox = load_and_run_detector(model_file, ['file.jpg'] , 'papka', render_confidence_threshold=0.5)[0]['detections'][0]['bbox']
+    return int(bbox[0]*4)
+
+@app.callback(Output('output-image-upload', 'children'),
+              Input('upload-image', 'contents'),
+              State('upload-image', 'filename'),
+              )
+def update_output(list_of_contents, list_of_names):
+    if list_of_contents is not None:
+        tigers = []
+        leopards = []
+        another = []
+        for elm in zip(list_of_contents,list_of_names):
+            flag = predict(elm)
+            if flag == 1:
+                tigers.append(elm)
+                continue
+            if flag == 2:
+                leopards.append(elm)
+                continue
+            another.append(elm)
+        children = []
+        if len(tigers) != 0:
+            if len(tigers) == 1:
+                data = [html.H1('На фотографии изображен тигр: ')]
+            else:
+                data = [html.H1('На фотографиях изображены тигры:  ')]
+            for elm in tigers:
+                data.append(html.Img(src=elm[0],
+                        style={
+                            'height': 400,
+                            'display' : 'block', 
+                            'margin-left' : 'auto', 
+                            'margin-right' : 'auto'
+                        }))
+                data.append(html.H2(elm[1],
+                    style = {'text-align': 'center'}
+                ))
+            children.append(html.Div(data))
+
+        if len(leopards) != 0:
+            if len(leopards) == 1:
+                data = [html.H1('На фотографии изображен леопард: ')]
+            else:
+                data = [html.H1('На фотографиях изображены леопарды: ')]
+            for elm in leopards:
+                data.append(html.Img(src=elm[0],
+                        style={
+                            'height': 400,
+                            'display' : 'block', 
+                            'margin-left' : 'auto', 
+                            'margin-right' : 'auto'
+                        }))
+                data.append(html.H2(elm[1],
+                    style = {'text-align': 'center'}
+                ))
+            children.append(html.Div(data))
+
+        if len(another) != 0:
+            if len(another) == 1:
+                data = [html.H1('На фотографии изображен не тигр и не леопард: ')]
+            else:
+                data = [html.H1('На фотографиях изображены не тигры и не леопарды: ')]
+            for elm in another:
+                data.append(html.Img(src=elm[0],
+                        style={
+                            'height': 400,
+                            'display' : 'block', 
+                            'margin-left' : 'auto', 
+                            'margin-right' : 'auto'
+                        }))
+                data.append(html.H2(elm[1],
+                    style = {'text-align': 'center'}
+                ))
+            children.append(html.Div(data))
+        return children
+
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
+
