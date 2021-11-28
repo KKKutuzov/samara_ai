@@ -23,3 +23,8 @@
 
     python3 main.py
 
+## Если не запускается так то можно запустить через Google Collab по этой ссылке:
+            
+    https://colab.research.google.com/drive/1N9QenRTbu26TvQFeipULjAOUCe2uVJnR?usp=sharing
+  
+ Нужно будет загрузить папку с фотографиями в Google Collab выполнить все кроме последней ячейки, в последней ячейке задать путь к папке с фотографиями, запустить последнюю я чейку в результате создастся файл lable.csv 
