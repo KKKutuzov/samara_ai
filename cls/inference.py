@@ -7,10 +7,12 @@ from utils import get_inference_transform
 
 if __name__ == "__main__":
     # init
+    device = 'cpu'
+    
     path_to_weights = None  # soon
     transform = get_inference_transform()
-    model = Classifier(path_to_weights)
-    device = 'cpu'
+    model = Classifier(path_to_weights).to(device)
+    model.eval()
     
     # inference
     img = np.random.randint(0, 256, (512, 512, 3))
@@ -18,5 +20,6 @@ if __name__ == "__main__":
 
     clss = int(model(torch_img).argmax(-1) + 1)
     print(clss)
+
 
 

@@ -35,8 +35,12 @@ print('Is GPU available? tf.test.is_gpu_available:', tf.test.is_gpu_available())
 
 path_to_weights = None  # soon
 transform = get_inference_transform()
-model = Classifier(path_to_weights)
 device = 'cpu'
+
+model = Classifier(path_to_weights)
+model.eval()
+model = model.to(device)
+
 def open_image(input_file):
     """
     Opens an image in binary format using PIL.Image and convert to RGB mode. This operation is lazy; image will
@@ -339,7 +343,7 @@ def predict(image_path):
   for img_path in imgs:
     img =  imread(img_path)
     torch_img = transform(img).to(device).unsqueeze(0)
-    clss = int(model(torch_img).argmax(-1) + 1)
+    clss = int(model(torch_img).argmax(-1) + 1)  # 1 - 
     labels.append(clss)
   pd.DataFrame({'id': imgs,
      'class': labels,
