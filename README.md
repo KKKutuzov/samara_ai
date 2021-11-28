@@ -1,7 +1,3 @@
-## Для загрузки весов модели выполнить:
-
-    wget https://www.dropbox.com/s/sre6ybq2l1glzet/weights.pth
-
 # Хакатон по искусственному интеллекту Самара
 ## Кейс №1: Защита редких животных
 
@@ -18,6 +14,11 @@
 ## Для загрузки детектора выполнить:
 
     wget https://lilablobssc.blob.core.windows.net/models/camera_traps/megadetector/md_v4.1.0/md_v4.1.0.pb
+
+## Для загрузки весов модели выполнить:
+
+    wget https://www.dropbox.com/s/sre6ybq2l1glzet/weights.pth
+
 
 ## Для запуска сервера выполнить:
     
