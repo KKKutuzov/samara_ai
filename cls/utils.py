@@ -60,6 +60,28 @@ def get_tranform(x):
     return torch_x
 
 
+def get_inference_transform():
+    A_transforms = A.Compose([
+        A.HorizontalFlip(),
+        A.LongestMaxSize(max_size=512),
+        A.PadIfNeeded(512, 512, border_mode=cv2.BORDER_CONSTANT)
+    ])
+
+    to_tensor = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    def transform(x):
+        x = np.array(x, np.uint8)
+        alb_x = A_transforms(image=x)['image']
+        torch_x = to_tensor(alb_x)
+        return torch_x
+    
+    return transform
+
+
+
 def get_model(path_to_weights=None, name="resnet", n_classes=1):
     pretrained = True if path_to_weights is None else False
 
@@ -72,19 +94,15 @@ def get_model(path_to_weights=None, name="resnet", n_classes=1):
 
         model.classifier = nn.Sequential(
             nn.Dropout(p=0.5, inplace=True), 
-            nn.Linear(in_features=2304, out_features=87, bias=True)
-        )
-        
-        if path_to_weights is not None:
-            model.load_state_dict(torch.load(path_to_weights))
-            print('Model was loaded!')
-
-        model.classifier = nn.Sequential(
-            nn.Dropout(p=0.5, inplace=True), 
             nn.Linear(in_features=2304, out_features=n_classes, bias=True)
         )
+        
     else:
         NotImplementedError
+
+    if path_to_weights is not None:
+        model.load_state_dict(torch.load(path_to_weights))
+        print('Model was loaded!')
 
     params = list(model.parameters())
     for param in params[:int(len(params) * 0.95)]:

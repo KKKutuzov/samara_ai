@@ -22,13 +22,10 @@ import torchvision
 from utils import get_tranform, get_split_lenghts, get_model, SamaraMetric
 
 
-pl.seed_everything(2)
 
-
-
-class Resnet(pl.LightningModule):
-    def __init__(self, path_to_weights=None, name="patched_resnet", lr=3e-4, size_patch=64, n_classes=20):
-        super(Resnet, self).__init__()
+class Classifier(pl.LightningModule):
+    def __init__(self, path_to_weights=None, name="efficient", lr=3e-5, size_patch=64, n_classes=3):
+        super(Classifier, self).__init__()
         self.model = get_model(path_to_weights, name, n_classes)
 
         # self.criterion = LabelSmoothingLoss(n_classes, 0.3)
@@ -50,25 +47,12 @@ class Resnet(pl.LightningModule):
         # cause logits loss
         self.train_acc = torchmetrics.Accuracy(num_classes=n_classes)
         self.train_samara = SamaraMetric()
-        # self.train_recall = torchmetrics.Recall()
-        # self.train_f1 = torchmetrics.F1()
-        # self.train_precision = torchmetrics.Precision()
-        # self.train_auc = torchmetrics.AUROC(average="weighted", pos_label=1)
 
         self.test_acc = torchmetrics.Accuracy(num_classes=n_classes)
         self.test_samara = SamaraMetric()
-        # self.test_recall = torchmetrics.Recall()
-        # self.test_precision = torchmetrics.Precision()
-        # self.test_f1 = torchmetrics.F1()
-        # self.test_auc = torchmetrics.AUROC(average="weighted", pos_label=1)
 
         self.val_acc = torchmetrics.Accuracy(num_classes=n_classes)
         self.val_samara = SamaraMetric()
-        # self.val_recall = torchmetrics.Recall()
-        # self.val_f1 = torchmetrics.F1()
-        # self.val_precision = torchmetrics.Precision()
-        # self.val_auc = torchmetrics.AUROC(average="weighted", pos_label=1)
-
 
 
     def forward(self, x):
@@ -199,6 +183,8 @@ class MyCheckpoint(ModelCheckpoint):
 
 
 if __name__ == "__main__":
+    pl.seed_everything(2)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", required=True)
     parser.add_argument("--name", required=True)
@@ -209,13 +195,12 @@ if __name__ == "__main__":
     opt.experiment_dir = str(Path(opt.checkpoints_dir, "experiments", name))
     Path(opt.experiment_dir).mkdir(parents=True, exist_ok=True)
 
-    # setup_logger(opt.experiment_dir, fname=f"{name}_main.log")
     wandb_logger = WandbLogger(
         project=opt.project_name, entity=opt.entity, save_dir=opt.experiment_dir, config=vars(opt), name=name, dir="/tmp",
     )
 
     data_module = ImageDataModule(**opt.data)
-    model = Resnet(**opt.model)
+    model = Classifier(**opt.model)
 
     checkpoint_callback = MyCheckpoint(
         monitor=opt.metric,
@@ -240,7 +225,7 @@ if __name__ == "__main__":
     trainer.fit(model, data_module)
 
     wo_weights = {key: value for key, value in opt.model.items() if key != "path_to_weights"}
-    model = Resnet(**wo_weights, path_to_weights=os.path.join(opt.experiment_dir, "model.pth"))
+    model = Classifier(**wo_weights, path_to_weights=os.path.join(opt.experiment_dir, "model.pth"))
     model.eval()
 
     trainer.test(model, datamodule=data_module)
