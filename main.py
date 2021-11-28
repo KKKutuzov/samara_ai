@@ -6,6 +6,7 @@ import tensorflow
 import sys
 import time
 import random
+from imageio import imread, imwrite
 import warnings
 
 import humanfriendly
@@ -33,11 +34,10 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 print('TensorFlow version:', tf.__version__)
 print('Is GPU available? tf.test.is_gpu_available:', tf.test.is_gpu_available())
 
-path_to_weights = None  # soon
+path_to_weights = '/content/weights.pth'
+device = 'cuda'
 transform = get_inference_transform()
-device = 'cpu'
-
-model = Classifier(path_to_weights)
+model = Classifier(path_to_weights).to(device)
 model.eval()
 model = model.to(device)
 
@@ -337,18 +337,71 @@ def load_and_run_detector(model_file, image_file_names, output_dir,
 model_file = "./md_v4.1.0.pb"
 
 
-def predict(image_path):
-  imgs = list(map(lambda x: image_path + '/' + x, list(filter(lambda x: x!= '.ipynb_checkpoints',os.listdir('/content/test')))))
+
+def crop(image_names, output_dir, bad_pathes):
+  model_file = "./md_v4.1.0.pb"
+  #test_dir = '/content/drive/MyDrive/дальневосточный леопард'
+  #output_dir = "/content/drive/MyDrive/дальневосточный леопард1"
+  detection_results = load_and_run_detector(model_file, image_names, output_dir, render_confidence_threshold=0.5)
+
+#image_file_names = glob.glob(test_dir + '/*')
+
+
+#detection_results = load_and_run_detector(model_file, image_file_names[1748:1750], output_dir, render_confidence_threshold=0.5)
+
+  df = pd.DataFrame(detection_results)
+  path_to_cropped = output_dir# в какую папку сохраняем
+  bad_pathes = [] # те, которые не задетектились, либо с багами - тигры
+  for index, row in df.iterrows():
+    path = row['file']
+    try:
+        img = Image.open(path)
+        if type(row['detections'][0]) == dict:
+            bbox_coords = row['detections'][0]['bbox']
+        else:
+            bbox_coords = row['detections'][0][0]['bbox']
+
+        x1, y1, w_box, h_box = bbox_coords
+        ymin, xmin, ymax, xmax = y1, x1, y1 + h_box, x1 + w_box
+        imageWidth=img.size[0]
+        imageHeight= img.size[1]
+        (left, right, top, bottom) = (xmin * imageWidth, xmax * imageWidth,
+                                        ymin * imageHeight, ymax * imageHeight)
+
+        # чекнуть директорию куда пойдут кропнутые картинки
+        img.crop((left, top, right, bottom)).save(path_to_cropped + '/' + str(row['file'].split('/')[-1]), 'JPEG')
+        
+    except KeyboardInterrupt:
+        raise KeyError
+
+    except:
+        bad_pathes.append(path)
+        pass
+def predict_2(image_path):
+  imgs_2 = list(map(lambda x: image_path + '/' + x, list(filter(lambda x: x!= '.ipynb_checkpoints',os.listdir(image_path)))))
+  id = []
   labels = []
+  bad_p = []
+  os.mkdir("tmp")
+  crop(imgs_2,os.getcwd() + '/tmp',bad_p)
+  imgs  = list(map(lambda x: os.getcwd() + '/tmp' + '/' + x, list(filter(lambda x: x!= '.ipynb_checkpoints',os.listdir(os.getcwd() + '/tmp')))))
   for img_path in imgs:
     img =  imread(img_path)
     torch_img = transform(img).to(device).unsqueeze(0)
-    clss = int(model(torch_img).argmax(-1) + 1)  # 1 - 
-    labels.append(clss)
-  pd.DataFrame({'id': imgs,
+    clss = int(model(torch_img).argmax(-1) + 1)
+    id.append(img_path.split('/')[-1])
+    if clss == 1:
+      labels.append(2)
+    if clss == 2:
+      labels.append(1)
+    if clss == 3:
+      labels.append(3)
+  for elm in bad_p:
+    id.append(elm.split('/')[-1])
+    labels.append(3)
+  pd.DataFrame({'id': id,
      'class': labels,
     }).to_csv('labels.csv', index=False)
 
-if __name__ == '__main__':
-    print('\n\n\nВведите название дириектории с фотографиями:\n')
-    predict(input())
+print('\n\n\nВведите название дириектории с фотографиями:\n')
+predict_2(input())
