@@ -18,6 +18,8 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 from tqdm import tqdm
 from CameraTraps.ct_utils import truncate_float
+from model import Classifier
+from utils import get_inference_transform
 
 # ignoring all "PIL cannot read EXIF metainfo for the images" warnings
 warnings.filterwarnings('ignore', '(Possibly )?corrupt EXIF data', UserWarning)
@@ -31,6 +33,10 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 print('TensorFlow version:', tf.__version__)
 print('Is GPU available? tf.test.is_gpu_available:', tf.test.is_gpu_available())
 
+path_to_weights = None  # soon
+transform = get_inference_transform()
+model = Classifier(path_to_weights)
+device = 'cpu'
 def open_image(input_file):
     """
     Opens an image in binary format using PIL.Image and convert to RGB mode. This operation is lazy; image will
@@ -327,27 +333,18 @@ def load_and_run_detector(model_file, image_file_names, output_dir,
 model_file = "./md_v4.1.0.pb"
 
 
-def predict(data):
-  files = []
+def predict(image_path):
+  imgs = list(map(lambda x: image_path + '/' + x, list(filter(lambda x: x!= '.ipynb_checkpoints',os.listdir('/content/test')))))
   labels = []
-  for d in data:
-    files.append(d[0])
-    labels.append(random.randint(1,3)) # тут надо прикрутить модель
-  pd.DataFrame({'id': files,
+  for img_path in imgs:
+    img =  imread(img_path)
+    torch_img = transform(img).to(device).unsqueeze(0)
+    clss = int(model(torch_img).argmax(-1) + 1)
+    labels.append(clss)
+  pd.DataFrame({'id': imgs,
      'class': labels,
     }).to_csv('labels.csv', index=False)
 
-def prepare(image_path):
-  imgs = list(map(lambda x: image_path + '/' + x, os.listdir(image_path)))
-  s = load_and_run_detector(model_file, imgs, 'papka', render_confidence_threshold=0.5)
-  data = [] # Список из файл и его ббокс, если ббокса нет то пустой список второй элемент
-  for elm in s:
-    if elm['detections']:
-      data.append((elm['file'], elm['detections'][0]['bbox']))
-    else:
-      data.append((elm['file'],[]))
-  predict(data)
-
 if __name__ == '__main__':
     print('\n\n\nВведите название дириектории с фотографиями:\n')
-    prepare(input())
+    predict(input())

@@ -6,7 +6,9 @@ import tensorflow
 import sys
 import time
 import warnings
-
+import numpy as np
+from model import Classifier
+from utils import get_inference_transform
 import humanfriendly
 import matplotlib.pyplot as plt
 import numpy as np
@@ -346,6 +348,10 @@ external_stylesheets = [
         "rel": "stylesheet",
     },
 ]
+path_to_weights = None  # soon
+transform = get_inference_transform()
+model = Classifier(path_to_weights)
+device = 'cpu'
 
 app = dash.Dash(__name__,
                 external_stylesheets=external_stylesheets)
@@ -430,11 +436,10 @@ def parse_contents(contents):
 def predict(img):
     with open('file.jpg', 'wb') as f:
         f.write(base64.decodebytes(img[0].encode("utf8").split(b";base64,")[1]))
-    
     img = imread('file.jpg')
-    bbox = load_and_run_detector(model_file, ['file.jpg'] , 'papka', render_confidence_threshold=0.5)[0] #не забыть пустую картинку обработать
-
-    return 1
+    torch_img = transform(img).to(device).unsqueeze(0)
+    clss = int(model(torch_img).argmax(-1) + 1)
+    return clss
 
 @app.callback(Output('output-image-upload', 'children'),
               Input('upload-image', 'contents'),
